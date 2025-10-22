@@ -1,0 +1,158 @@
+
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MiniTube — Frontend (GitHub Pages)</title>
+<style>
+  body{font-family:Inter, system-ui, sans-serif;background:#071126;color:#e6eef6;margin:0;padding:18px}
+  .container{max-width:1000px;margin:0 auto}
+  header{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  input[type="text"], input[type="file"]{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+  button{padding:8px 12px;border-radius:8px;border:none;background:#ff3b30;color:white;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .card{background:#081427;padding:10px;border-radius:10px}
+  .thumb{background:#000;height:150px;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  video{width:100%;height:100%;object-fit:cover}
+  .player{margin-top:12px;background:#000;padding:8px;border-radius:8px}
+  footer{margin-top:18px;color:#99a4b2}
+  .muted{color:#9aa4b2}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h2>MiniTube</h2>
+    <input id="search" type="text" placeholder="Caută..." />
+    <input id="file" type="file" accept="video/*" />
+    <input id="title" placeholder="Titlu" />
+    <input id="channel" placeholder="Canal" />
+    <button id="uploadBtn">Încarcă</button>
+  </header>
+
+  <main>
+    <div id="list" class="grid"></div>
+
+    <div id="playerSection" class="player" style="display:none">
+      <h3 id="pTitle"></h3>
+      <video id="pVideo" controls style="width:100%;max-height:520px"></video>
+      <p id="pMeta" class="muted"></p>
+      <button id="delBtn" style="background:#444;padding:8px 10px;border-radius:8px;color:white">Șterge acest video</button>
+    </div>
+  </main>
+
+  <footer>
+    Backend API: <code id="apiUrl">https://your-backend-on-render.example</code>
+  </footer>
+</div>
+<script src="config.js"></script>
+<script>
+const API = window.APP_CONFIG && window.APP_CONFIG.API_BASE ? window.APP_CONFIG.API_BASE : 'http://localhost:3000';
+const fileInput = document.getElementById('file');
+const uploadBtn = document.getElementById('uploadBtn');
+const listEl = document.getElementById('list');
+const search = document.getElementById('search');
+const titleInput = document.getElementById('title');
+const channelInput = document.getElementById('channel');
+const playerSection = document.getElementById('playerSection');
+const pVideo = document.getElementById('pVideo');
+const pTitle = document.getElementById('pTitle');
+const pMeta = document.getElementById('pMeta');
+const delBtn = document.getElementById('delBtn');
+const apiUrlEl = document.getElementById('apiUrl');
+apiUrlEl.textContent = API;
+
+let currentPlayingId = null;
+
+async function fetchList(){
+  const res = await fetch(API + '/api/videos');
+  const data = await res.json();
+  renderList(data);
+}
+
+function renderList(videos){
+  listEl.innerHTML = '';
+  for(const v of videos){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="thumb"><video preload="metadata" src="${v.url}" ></video></div>
+      <div class="meta"><strong>${escapeHtml(v.title)}</strong><div class="muted">${escapeHtml(v.channel)} • ${formatDuration(v.duration)}</div></div>
+    `;
+    card.addEventListener('click', ()=> openPlayer(v));
+    listEl.appendChild(card);
+  }
+}
+
+function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+function formatDuration(sec){ if(!sec) return '0:00'; const m = Math.floor(sec/60); const s = Math.floor(sec%60).toString().padStart(2,'0'); return `${m}:${s}`; }
+
+function openPlayer(v){
+  currentPlayingId = v.id;
+  playerSection.style.display = '';
+  pTitle.textContent = v.title;
+  pVideo.src = v.url;
+  pMeta.textContent = `${v.channel} • ${formatDuration(v.duration)} • ${new Date(v.created_at*1000).toLocaleString()}`;
+}
+
+uploadBtn.addEventListener('click', async ()=>{
+  const file = fileInput.files[0];
+  if(!file){ alert('Alege un fișier'); return; }
+  uploadBtn.disabled = true;
+  try{
+    // presign
+    const presignRes = await fetch(API + '/api/presign', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size })
+    });
+    if(!presignRes.ok) throw new Error('Presign failed');
+    const { url, key } = await presignRes.json();
+    // PUT to S3
+    const putRes = await fetch(url, {
+      method:'PUT',
+      headers:{ 'Content-Type': file.type },
+      body: file
+    });
+    if(!putRes.ok) throw new Error('Upload to S3 failed');
+    // notify backend
+    const completeRes = await fetch(API + '/api/complete', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ key, originalname: file.name, title: titleInput.value || file.name, channel: channelInput.value || 'Anonim', description:'', size: file.size })
+    });
+    if(!completeRes.ok) throw new Error('Complete request failed');
+    await fetchList();
+    fileInput.value=''; titleInput.value=''; channelInput.value='';
+    alert('Upload finalizat');
+  } catch(err){
+    alert('Eroare: ' + err.message);
+  } finally{
+    uploadBtn.disabled = false;
+  }
+});
+
+delBtn.addEventListener('click', async ()=>{
+  if(!currentPlayingId) return;
+  if(!confirm('Ștergi videoclipul?')) return;
+  const res = await fetch(API + '/api/videos/' + currentPlayingId, { method:'DELETE' });
+  if(!res.ok){ alert('Eroare la ștergere'); return; }
+  currentPlayingId = null;
+  playerSection.style.display = 'none';
+  await fetchList();
+});
+
+search.addEventListener('input', async ()=>{
+  const q = search.value.trim().toLowerCase();
+  const res = await fetch(API + '/api/videos');
+  const all = await res.json();
+  if(!q){ renderList(all); return; }
+  const filtered = all.filter(v => (v.title||'').toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q));
+  renderList(filtered);
+});
+
+fetchList();
+</script>
+</body>
+</html>
