@@ -3,154 +3,232 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube de Buget 🎥</title>
+  <title>YouTube de Buget 2.0 🎬</title>
   <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #181818;
+      --text: #fff;
+      --accent: #ff0000;
+    }
+    [data-theme="light"] {
+      --bg: #f8f8f8;
+      --card: #fff;
+      --text: #000;
+      --accent: #e60000;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background-color: #0f0f0f;
-      color: #fff;
+      font-family: "Roboto", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
       margin: 0;
-      text-align: center;
+      transition: 0.3s;
     }
+
     header {
-      background-color: #202020;
-      padding: 15px;
-      font-size: 1.5em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--card);
+      padding: 10px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    .logo {
       font-weight: bold;
-      box-shadow: 0 2px 10px #000;
+      font-size: 1.4em;
+      color: var(--accent);
     }
-    .upload-box {
-      margin: 20px auto;
-      padding: 20px;
-      border: 2px dashed #444;
-      border-radius: 15px;
-      background-color: #181818;
-      width: 90%;
-      max-width: 500px;
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    input[type="file"], input[type="text"], button {
-      margin: 10px;
-      padding: 10px;
-      border-radius: 10px;
+
+    input[type="text"], input[type="file"] {
       border: none;
+      padding: 8px;
+      border-radius: 8px;
       outline: none;
-      font-size: 1em;
+      background: var(--card);
+      color: var(--text);
     }
+
     button {
-      background-color: #ff0000;
-      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
       cursor: pointer;
-      font-weight: bold;
       transition: 0.2s;
     }
-    button:hover { background-color: #cc0000; }
+    button:hover { opacity: 0.8; }
+
+    .theme-toggle {
+      background: none;
+      color: var(--text);
+      font-size: 1.2em;
+      cursor: pointer;
+    }
+
     .video-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 20px;
       padding: 20px;
     }
+
     .video-card {
-      background: #181818;
+      background: var(--card);
       border-radius: 10px;
-      padding: 10px;
-      width: 340px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      transition: 0.2s;
+      position: relative;
     }
+    .video-card:hover { transform: scale(1.02); }
+
     video {
       width: 100%;
-      border-radius: 10px;
-      background: black;
+      height: 180px;
+      background: #000;
     }
+
+    .video-info {
+      padding: 10px;
+    }
+
+    .title {
+      font-weight: bold;
+      color: var(--text);
+    }
+
     .delete-btn {
-      margin-top: 10px;
-      background-color: #444;
-      color: #fff;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 0, 0, 0.8);
       border: none;
-      border-radius: 8px;
-      padding: 8px 16px;
+      border-radius: 6px;
+      color: white;
+      padding: 4px 8px;
       cursor: pointer;
-      transition: 0.2s;
+      display: none;
     }
-    .delete-btn:hover {
-      background-color: #ff3333;
+    .video-card:hover .delete-btn {
+      display: block;
+    }
+
+    .upload-section {
+      text-align: center;
+      padding: 20px;
+      background: var(--card);
+      border-radius: 10px;
+      margin: 20px;
     }
   </style>
 </head>
 <body>
-  <header>🎬 YouTube de Buget</header>
+  <header>
+    <div class="logo">▶ YouTube de Buget 2.0</div>
+    <div class="controls">
+      <button class="theme-toggle" onclick="toggleTheme()">🌗</button>
+    </div>
+  </header>
 
-  <div class="upload-box">
-    <h3>Adaugă videoclip</h3>
-    <input type="file" id="fileInput" accept="video/*"><br>
-    <input type="text" id="videoURL" placeholder="sau lipește un link MP4/YouTube"><br>
-    <button onclick="addVideo()">Încarcă / Adaugă</button>
+  <div class="upload-section">
+    <h2>Adaugă un videoclip 🎥</h2>
+    <input type="file" id="fileInput" accept="video/*">
+    <br><br>
+    <input type="text" id="videoURL" placeholder="sau link MP4 / YouTube">
+    <input type="text" id="videoTitle" placeholder="Titlu videoclip">
+    <button onclick="addVideo()">Adaugă</button>
   </div>
 
-  <h2>📺 Videoclipurile tale</h2>
   <div class="video-grid" id="videoGrid"></div>
 
   <script>
-    const videoGrid = document.getElementById('videoGrid');
+    const grid = document.getElementById('videoGrid');
     let videos = JSON.parse(localStorage.getItem('videos') || '[]');
 
-    function saveVideos() {
+    function save() {
       localStorage.setItem('videos', JSON.stringify(videos));
     }
 
-    function renderVideos() {
-      videoGrid.innerHTML = '';
-      videos.forEach((src, index) => {
+    function render() {
+      grid.innerHTML = '';
+      videos.forEach((v, i) => {
         const card = document.createElement('div');
         card.className = 'video-card';
 
-        const video = document.createElement('video');
-        video.src = src;
-        video.controls = true;
+        const vid = document.createElement('video');
+        vid.src = v.url;
+        vid.controls = true;
 
-        const delBtn = document.createElement('button');
-        delBtn.className = 'delete-btn';
-        delBtn.textContent = '🗑️ Șterge';
-        delBtn.onclick = () => {
-          if (confirm('Sigur vrei să ștergi acest videoclip?')) {
-            videos.splice(index, 1);
-            saveVideos();
-            renderVideos();
+        const info = document.createElement('div');
+        info.className = 'video-info';
+        info.innerHTML = `<div class="title">${v.title || 'Fără titlu'}</div>`;
+
+        const del = document.createElement('button');
+        del.className = 'delete-btn';
+        del.textContent = '🗑️';
+        del.onclick = e => {
+          e.stopPropagation();
+          if (confirm('Ștergi acest videoclip?')) {
+            videos.splice(i, 1);
+            save(); render();
           }
         };
 
-        card.appendChild(video);
-        card.appendChild(delBtn);
-        videoGrid.appendChild(card);
+        card.append(vid, info, del);
+        grid.appendChild(card);
       });
     }
 
-    async function addVideo() {
+    function addVideo() {
       const file = document.getElementById('fileInput').files[0];
-      const link = document.getElementById('videoURL').value.trim();
+      const url = document.getElementById('videoURL').value.trim();
+      const title = document.getElementById('videoTitle').value.trim();
 
       if (file) {
-        const url = URL.createObjectURL(file);
-        videos.push(url);
-        saveVideos();
-      } else if (link) {
-        videos.push(link);
-        saveVideos();
+        const blobUrl = URL.createObjectURL(file);
+        videos.push({ url: blobUrl, title });
+      } else if (url) {
+        videos.push({ url, title });
       } else {
-        alert('Selectează un fișier sau lipește un link!');
-        return;
+        return alert('Alege un fișier sau introdu un link video!');
       }
 
-      renderVideos();
+      save();
+      render();
       document.getElementById('fileInput').value = '';
       document.getElementById('videoURL').value = '';
+      document.getElementById('videoTitle').value = '';
     }
 
-    renderVideos();
+    function toggleTheme() {
+      const current = document.body.getAttribute('data-theme');
+      if (current === 'light') {
+        document.body.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.body.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      }
+    }
+
+    // Load saved theme
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.setAttribute('data-theme', 'light');
+    }
+
+    render();
   </script>
 </body>
 </html>
