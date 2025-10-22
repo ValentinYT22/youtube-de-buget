@@ -1,72 +1,109 @@
-
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YouTube de buget - Firebase Edition</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube de Buget 🎥</title>
   <style>
-    body { font-family: Arial; background: #111; color: white; text-align: center; }
-    input, button { margin: 10px; padding: 10px; border-radius: 10px; }
-    video { width: 320px; margin: 10px; border-radius: 10px; }
-    .videos { display: flex; flex-wrap: wrap; justify-content: center; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0f0f0f;
+      color: #fff;
+      margin: 0;
+      text-align: center;
+    }
+    header {
+      background-color: #202020;
+      padding: 15px;
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    .upload-box {
+      margin: 20px;
+      padding: 20px;
+      border: 2px dashed #444;
+      border-radius: 15px;
+      display: inline-block;
+      background-color: #181818;
+    }
+    input[type="file"], input[type="text"], button {
+      margin: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+    }
+    button {
+      background-color: #ff0000;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    button:hover { background-color: #cc0000; }
+    .video-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    video {
+      width: 320px;
+      border-radius: 10px;
+      background: black;
+    }
   </style>
 </head>
 <body>
-  <h1>🎬 YouTube de buget (Firebase)</h1>
-  <input type="file" id="fileInput" accept="video/*">
-  <button id="uploadBtn">Încarcă video</button>
-  <div class="videos" id="videos"></div>
+  <header>🎬 YouTube de Buget</header>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <div class="upload-box">
+    <h3>Adaugă videoclip</h3>
+    <input type="file" id="fileInput" accept="video/*"><br>
+    <input type="text" id="videoURL" placeholder="sau lipește un link MP4/YouTube"><br>
+    <button onclick="addVideo()">Încarcă / Adaugă</button>
+  </div>
+
+  <h2>📺 Videoclipurile tale</h2>
+  <div class="video-grid" id="videoGrid"></div>
+
   <script>
-    // 🔧 CONFIGURAȚIA TA FIREBASE (înlocuiește cu a ta)
-    const firebaseConfig = {
-      apiKey: "API_KEY_AICI",
-      authDomain: "youtube-de-buget.firebaseapp.com",
-      projectId: "youtube-de-buget",
-      storageBucket: "youtube-de-buget.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:1234567890:web:abcdef123456"
-    };
+    const videoGrid = document.getElementById('videoGrid');
+    const videos = JSON.parse(localStorage.getItem('videos') || '[]');
 
-    // 🔥 Inițializează Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const storage = firebase.storage();
-    const storageRef = storage.ref();
-
-    const uploadBtn = document.getElementById('uploadBtn');
-    const fileInput = document.getElementById('fileInput');
-    const videosDiv = document.getElementById('videos');
-
-    // 🆙 Upload video
-    uploadBtn.onclick = async () => {
-      const file = fileInput.files[0];
-      if (!file) return alert('Selectează un fișier video!');
-      const ref = storageRef.child('videos/' + file.name);
-      await ref.put(file);
-      alert('✅ Upload complet!');
-      listVideos();
-    };
-
-    // 📜 Listează videoclipurile
-    async function listVideos() {
-      videosDiv.innerHTML = '';
-      const listRef = storageRef.child('videos');
-      const res = await listRef.listAll();
-      for (const item of res.items) {
-        const url = await item.getDownloadURL();
+    function renderVideos() {
+      videoGrid.innerHTML = '';
+      videos.forEach(src => {
         const video = document.createElement('video');
-        video.src = url;
+        video.src = src;
         video.controls = true;
-        videosDiv.appendChild(video);
-      }
+        videoGrid.appendChild(video);
+      });
     }
 
-    listVideos();
+    async function addVideo() {
+      const file = document.getElementById('fileInput').files[0];
+      const link = document.getElementById('videoURL').value.trim();
+
+      if (file) {
+        const url = URL.createObjectURL(file);
+        videos.push(url);
+        localStorage.setItem('videos', JSON.stringify(videos));
+      } else if (link) {
+        videos.push(link);
+        localStorage.setItem('videos', JSON.stringify(videos));
+      } else {
+        alert('Selectează un fișier sau lipește un link!');
+        return;
+      }
+
+      renderVideos();
+      document.getElementById('fileInput').value = '';
+      document.getElementById('videoURL').value = '';
+    }
+
+    renderVideos();
   </script>
 </body>
 </html>
-
